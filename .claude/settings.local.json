@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gt log:*)",
+      "Bash(git checkout:*)",
+      "Bash(git diff:*)",
+      "Bash(yarn typecheck:*)",
+      "Bash(git status:*)"
+    ]
+  }
+}
