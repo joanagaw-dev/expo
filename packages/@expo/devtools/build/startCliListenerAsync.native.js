@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { getDevToolsPluginClientAsync } from './DevToolsPluginClientFactory';
+import { getDevToolsPluginClientAsync } from './DevToolsPluginClientFactory.js';
 /**
  * Starts a new imperative listener for cli plugins. This is an alternative to the useDevToolsPlugin
  * hook that is used with devtools. This function is used to avoid having the user to use the hook,
