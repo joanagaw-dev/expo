@@ -1,4 +1,5 @@
-import Constants from 'expo-constants';
+import { applicationId } from 'expo-application';
+import { deviceName as expoDeviceName } from 'expo-device';
 import { Platform } from 'react-native';
 import { getDevToolsPluginClientAsync } from './DevToolsPluginClientFactory.js';
 /**
@@ -16,7 +17,7 @@ export const startCliListenerAsync = async (pluginName) => {
         let clientRef = null;
         const listenerRemovals = [];
         const getDeviceName = () => {
-            const name = Constants.deviceName ?? 'Unknown device';
+            const name = expoDeviceName ?? 'Unknown device';
             return Platform.OS === 'android' ? name + ' - ' + Platform.Version : name;
         };
         const client = await getDevToolsPluginClientAsync(pluginName);
@@ -52,9 +53,7 @@ export const startCliListenerAsync = async (pluginName) => {
             await client.sendMessage(eventName, {
                 message,
                 deviceName: getDeviceName(),
-                applicationId: Platform.OS === 'ios'
-                    ? Constants.expoConfig?.ios?.bundleIdentifier
-                    : Constants.expoConfig?.android?.package,
+                applicationId,
             });
         };
         return { addMessageListener, sendMessageAsync };
