@@ -12,8 +12,8 @@ describe('getExpoCliPluginParameters', () => {
         'node',
         'script.js',
         'cmd',
-        'https://localhost:8081',
         '{invalidJson',
+        'https://localhost:8081',
       ])
     ).toThrow();
   });
@@ -29,8 +29,8 @@ describe('getExpoCliPluginParameters', () => {
         'node',
         'script.js',
         'cmd',
+        '{}',
         '',
-        '["not", "an", "object"]',
       ])
     ).toThrow();
   });

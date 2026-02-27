@@ -52,10 +52,18 @@
     "ws": "^8.18.0"
   },
   "peerDependencies": {
+    "expo-application": "*",
+    "expo-device": "*",
     "react": "*",
     "react-native": "*"
   },
   "peerDependenciesMeta": {
+    "expo-application": {
+      "optional": true
+    },
+    "expo-device": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
