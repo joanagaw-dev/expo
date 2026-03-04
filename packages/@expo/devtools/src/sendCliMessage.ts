@@ -1,6 +1,10 @@
 import { Data } from 'ws';
 
-import { ExpoCliExtensionAppInfo } from './CliExtension.types.js';
+import {
+  CliMessageEnvelope,
+  CliRequestPayload,
+  ExpoCliExtensionAppInfo,
+} from './CliExtension.types.js';
 import { SendMessageError } from './CliExtensionUtils.js';
 
 // We'd like this to be fairly quick, and at least a bit shorter
@@ -12,75 +16,40 @@ const DEFAULT_TIMEOUT_MS = 5_000;
  * If the connection times out or an error occurs, it rejects the promise with an error.
  * @param message Message to send to the WebSocket server.
  * @param pluginName Name of the plugin to send the message to. This is used to identify the plugin in the WebSocket server.
- * @param apps Apps to send the message to. This is an array of `MetroInspectorApp` objects.
+ * @param app App to send the message to. This is a `MetroInspectorApp` object.
  * @param params Optional parameters to include in the message payload.
  * @param timeoutMs Timeout in milliseconds to wait for a response. Defaults to 10 seconds.
  */
 export async function sendCliMessageAsync<Params extends Record<string, unknown>>(
   message: string,
   pluginName: string,
-  apps: ExpoCliExtensionAppInfo[],
+  app: ExpoCliExtensionAppInfo,
   params?: Params,
   timeoutMs = DEFAULT_TIMEOUT_MS
-): Promise<Record<string, string | null>> {
+): Promise<string | null> {
   // Sanity check: ensure that all apps share the same WebSocket URL
-  if (apps.length === 0) {
-    return Promise.reject(new Error('No apps provided to send the message to.'));
-  }
-
-  // Check that all apps share the same broadcast URL
-  if (
-    apps.some(
-      (app) => new URL(app.webSocketDebuggerUrl).host !== new URL(apps[0].webSocketDebuggerUrl).host
-    )
-  ) {
-    return Promise.reject(
-      new SendMessageError(
-        'All apps should share the same WebSocket URL hostname to send messages.' +
-          apps[0].webSocketDebuggerUrl,
-        apps[0]
-      )
-    );
+  if (!app) {
+    return Promise.reject(new Error('No app provided to send the message to.'));
   }
 
   // Create connection
-  const url = new URL(apps[0].webSocketDebuggerUrl);
+  const url = new URL(app.webSocketDebuggerUrl);
   const address = `ws://${url.host}/expo-dev-plugins/broadcast`;
 
   // Create results for all apps
-  const results = apps.reduce(
-    (acc, app) => ({
-      ...acc,
-      [app.id]: null,
-    }),
-    {} as Record<string, string | null>
-  );
+  let results: string | null;
 
   // Create a websocket connection to the broadcast channel
   const ws = new WebSocket(address);
 
   // Lets do the rest of the handling in the event listeners through a promise that will be resolved
   // when we get a response for the message we sent
-  return new Promise<Record<string, string | null>>((resolve, reject) => {
+  return new Promise<string | null>((resolve, reject) => {
     // Setup timeout handler
     const timeoutHandler = setTimeout(() => {
       // Close the WebSocket to allow the process to exit
       ws.close();
-      // Check if no results are resolved - this is an error:
-      if (Object.values(results).every((result) => result === null)) {
-        const errorMessage = `Timeout while waiting for response from apps.`;
-        reject(new SendMessageError(errorMessage, apps.find((a) => results[a.id] === null)!));
-      } else if (Object.values(results).some((result) => result !== null)) {
-        // We got partial results - this is ok, but with a warning - update results for each of the apps
-        // that didn't respond with a warning message
-        Object.keys(results).forEach((key) => {
-          if (results[key] === null) {
-            results[key] = 'No response (timeout)';
-          }
-        });
-        resolve(results as Record<string, string>);
-      }
-      // Clear the timeout handler
+      reject(new SendMessageError(`Timeout while waiting for response from app.`, app));
       clearTimeout(timeoutHandler);
     }, timeoutMs);
 
@@ -91,35 +60,36 @@ export async function sendCliMessageAsync<Params extends Record<string, unknown>
         // We got a response for our message. Now get the app ID and result
         const { deviceName, applicationId } = payload;
         const result = payload.message;
-        const app = apps.find(
-          (app) => getDeviceIdentifier(app) === formatDeviceIdentifier(deviceName, applicationId)
-        );
-
-        if (!app) {
-          reject(
-            new Error(
-              `Received response for unknown app: ${deviceName} (${applicationId}). Ignoring.`
-            )
-          );
+        if (app.deviceName !== deviceName || app.appId !== applicationId) {
+          clearTimeout(timeoutHandler);
+          ws.close();
+          reject(new Error(`Received response for unknown app: ${deviceName} (${applicationId})`));
           return;
         }
 
-        results[app.id] = result.toString();
+        results = result.toString();
 
         // Check if we have results for all apps
-        if (Object.values(results).every((result) => result !== null)) {
-          clearTimeout(timeoutHandler);
-          ws.close();
-          // Resolve the promise with the results
-          resolve(results);
-        }
+        clearTimeout(timeoutHandler);
+        ws.close();
+        // Resolve the promise with the results
+        resolve(results);
       }
     });
 
     ws.addEventListener('open', () => {
       // On Open we'll send the message to the broadcast channel
       const messageKey = getMessageKey(pluginName, message);
-      ws.send(JSON.stringify({ messageKey, payload: { from: 'cli', ...params } }));
+      const envelope: CliMessageEnvelope<CliRequestPayload<Params>> = {
+        messageKey,
+        payload: {
+          from: 'cli',
+          targetDeviceName: app.deviceName,
+          targetAppId: app.appId,
+          params,
+        },
+      };
+      ws.send(JSON.stringify(envelope));
     });
     ws.addEventListener('error', () => {
       clearTimeout(timeoutHandler);
@@ -138,7 +108,7 @@ const getMessageKey = (pluginName: string, method: string) => ({
   method,
 });
 
-function parseWebSocketData<T extends Record<string, any>>(data: Data): any {
+function parseWebSocketData<T extends Record<string, any>>(data: Data): T {
   if (typeof data === 'string') {
     return JSON.parse(data) as T;
   } else if (data instanceof Buffer) {
@@ -150,13 +120,3 @@ function parseWebSocketData<T extends Record<string, any>>(data: Data): any {
   }
   throw new Error('Unsupported WebSocket data type');
 }
-
-const getDeviceIdentifier = (app: ExpoCliExtensionAppInfo) => {
-  // Use the deviceName + app ID as the device identifier
-  return formatDeviceIdentifier(app.deviceName, app.appId);
-};
-
-const formatDeviceIdentifier = (deviceName: string, applicationId: string) => {
-  // Use the deviceName + app ID as the device identifier
-  return `${deviceName} (${applicationId})`;
-};

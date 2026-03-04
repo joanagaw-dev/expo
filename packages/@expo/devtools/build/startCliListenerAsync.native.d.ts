@@ -7,10 +7,9 @@
  * @returns
  */
 export declare const startCliListenerAsync: (pluginName: string) => Promise<{
-    addMessageListener: <P extends Record<string, string>>(eventName: string, callback: (arg: {
+    addMessageListener: <P extends Record<string, unknown>>(eventName: string, callback: (arg: {
         params: P;
         sendResponseAsync: (message: string) => Promise<void>;
     }) => void) => void;
-    sendMessageAsync: (eventName: string, message: string) => Promise<void>;
 }>;
 //# sourceMappingURL=startCliListenerAsync.native.d.ts.map

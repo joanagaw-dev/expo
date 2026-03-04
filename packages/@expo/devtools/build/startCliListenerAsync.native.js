@@ -1,6 +1,3 @@
-import { applicationId } from 'expo-application';
-import { deviceName as expoDeviceName } from 'expo-device';
-import { Platform } from 'react-native';
 import { getDevToolsPluginClientAsync } from './DevToolsPluginClientFactory.js';
 /**
  * Starts a new imperative listener for cli plugins. This is an alternative to the useDevToolsPlugin
@@ -16,10 +13,6 @@ export const startCliListenerAsync = async (pluginName) => {
         console.debug(`[startCliListenerAsync] Starting CLI message listener for plugin ${pluginName}...`);
         let clientRef = null;
         const listenerRemovals = [];
-        const getDeviceName = () => {
-            const name = expoDeviceName ?? 'Unknown device';
-            return Platform.OS === 'android' ? name + ' - ' + Platform.Version : name;
-        };
         const client = await getDevToolsPluginClientAsync(pluginName);
         if (clientRef != null) {
             // Clean up the previous client if it exists
@@ -40,30 +33,26 @@ export const startCliListenerAsync = async (pluginName) => {
         }
         // Create the addMessageListener function for the plugin
         const addMessageListener = (eventName, callback) => {
-            listenerRemovals.push(client.addMessageListener(eventName, async (params) => {
-                // Create response message function
+            listenerRemovals.push(client.addMessageListener(eventName, async (requestPayload) => {
+                const { targetDeviceName, targetAppId } = requestPayload;
+                // Create response message function that echoes back the CLI-provided identity
                 const sendResponseAsync = async (message) => {
-                    await sendMessageAsync(eventName + '_response', message);
+                    const response = {
+                        message,
+                        deviceName: targetDeviceName,
+                        applicationId: targetAppId,
+                    };
+                    await client.sendMessage(eventName + '_response', response);
                 };
-                callback({ params, sendResponseAsync });
+                callback({ params: requestPayload.params, sendResponseAsync });
             }).remove);
         };
-        // Create the sendMessageAsync function for the plugin
-        const sendMessageAsync = async (eventName, message) => {
-            await client.sendMessage(eventName, {
-                message,
-                deviceName: getDeviceName(),
-                applicationId,
-            });
-        };
-        return { addMessageListener, sendMessageAsync };
+        return { addMessageListener };
     }
     else {
         console.debug(`Skipping starting startDevToolsPluginListenerAsync for plugin ${pluginName}...`);
         const addMessageListener = (_e, _c) => { };
-        // Create the sendMessageAsync function for the plugin
-        const sendMessageAsync = async (_e, _m) => { };
-        return { addMessageListener, sendMessageAsync };
+        return { addMessageListener };
     }
 };
 //# sourceMappingURL=startCliListenerAsync.native.js.map

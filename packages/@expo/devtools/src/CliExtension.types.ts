@@ -84,6 +84,7 @@ export type ExpoCliExtensionParameters<T extends ExpoCliExtensionCommandSchema> 
   [K in keyof T]: {
     command: K;
     args: ExpoCliExtensionArgs<T>[K];
+    app: ExpoCliExtensionAppInfo;
     metroServerOrigin: string;
   };
 }[keyof T];
@@ -105,3 +106,30 @@ export type ExpoCliExtensionExecutor<T extends ExpoCliExtensionCommandSchema> = 
     uri: (uri: string, altText?: string) => void;
   }
 ) => Promise<void>;
+
+/** The envelope wrapping all CLI ↔ App messages over the broadcast channel. */
+export type CliMessageEnvelope<P> = {
+  messageKey: { pluginName: string; method: string };
+  payload: P;
+};
+
+/** Payload sent from the CLI to a running app. Generic over the user-provided params. */
+export type CliRequestPayload<Params extends Record<string, unknown> = Record<string, unknown>> = {
+  from: 'cli';
+  /** Device name as reported by Metro's /json/list — used for targeting a specific device. */
+  targetDeviceName: string;
+  /** Application ID as reported by Metro's /json/list — used for targeting a specific app. */
+  targetAppId: string;
+  /** User-provided parameters for the message. */
+  params?: Params;
+};
+
+/** Payload sent from the app back to the CLI. */
+export type CliResponsePayload = {
+  /** The result message from the app. */
+  message: string;
+  /** Device name — should match the targetDeviceName from the request. */
+  deviceName: string;
+  /** Application ID — should match the targetAppId from the request. */
+  applicationId: string;
+};

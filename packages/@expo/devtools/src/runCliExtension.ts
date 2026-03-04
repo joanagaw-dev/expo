@@ -1,6 +1,7 @@
 import { format } from 'util';
 
 import type {
+  ExpoCliExtensionAppInfo,
   ExpoCliExtensionCommandSchema,
   ExpoCliExtensionExecutor,
   ExpoCliExtensionParameters,
@@ -39,6 +40,7 @@ const getExpoCliPluginParameters = <T extends ExpoCliExtensionCommandSchema>(
   const command = argv[2]?.toLowerCase();
   const argsString = argv[3] ?? '{}';
   const metroServerOrigin = argv[4] ?? '';
+  const appString = argv[5] ?? '{}';
 
   // Verify command exists
   if (!command) {
@@ -63,10 +65,28 @@ const getExpoCliPluginParameters = <T extends ExpoCliExtensionCommandSchema>(
     throw new Error('Expected object for args parameter, got ' + JSON.stringify(args));
   }
 
+  if (appString === '{}') {
+    throw new Error('No app provided.');
+  }
+
+  let app: ExpoCliExtensionAppInfo = {} as ExpoCliExtensionAppInfo;
+  try {
+    app = JSON.parse(appString);
+  } catch (error) {
+    throw new Error(
+      `Invalid app JSON: ${error instanceof Error ? error.message : 'Unknown error'} - ${argv.join(', ')}`
+    );
+  }
+
+  if (Array.isArray(app) || typeof app !== 'object') {
+    throw new Error('Expected object for app parameter, got ' + JSON.stringify(app));
+  }
+
   return {
     command,
     args,
     metroServerOrigin,
+    app,
   } as ExpoCliExtensionParameters<T>;
 };
 

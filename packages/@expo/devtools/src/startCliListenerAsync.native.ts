@@ -1,7 +1,4 @@
-import { applicationId } from 'expo-application';
-import { deviceName as expoDeviceName } from 'expo-device';
-import { Platform } from 'react-native';
-
+import type { CliRequestPayload, CliResponsePayload } from './CliExtension.types.js';
 import { getDevToolsPluginClientAsync } from './DevToolsPluginClientFactory.js';
 
 /**
@@ -20,11 +17,6 @@ export const startCliListenerAsync = async (pluginName: string) => {
     );
     let clientRef: Awaited<ReturnType<typeof getDevToolsPluginClientAsync>> | null = null;
     const listenerRemovals: (() => void)[] = [];
-
-    const getDeviceName = () => {
-      const name = expoDeviceName ?? 'Unknown device';
-      return Platform.OS === 'android' ? name + ' - ' + Platform.Version : name;
-    };
 
     const client = await getDevToolsPluginClientAsync(pluginName);
     if (clientRef != null) {
@@ -47,40 +39,35 @@ export const startCliListenerAsync = async (pluginName: string) => {
     }
 
     // Create the addMessageListener function for the plugin
-    const addMessageListener = <P extends Record<string, string>>(
+    const addMessageListener = <P extends Record<string, unknown>>(
       eventName: string,
       callback: (arg: { params: P; sendResponseAsync: (message: string) => Promise<void> }) => void
     ) => {
       listenerRemovals.push(
-        client.addMessageListener(eventName, async (params) => {
-          // Create response message function
+        client.addMessageListener(eventName, async (requestPayload: CliRequestPayload<P>) => {
+          const { targetDeviceName, targetAppId } = requestPayload;
+          // Create response message function that echoes back the CLI-provided identity
           const sendResponseAsync = async (message: string) => {
-            await sendMessageAsync(eventName + '_response', message);
+            const response: CliResponsePayload = {
+              message,
+              deviceName: targetDeviceName,
+              applicationId: targetAppId,
+            };
+            await client.sendMessage(eventName + '_response', response);
           };
-          callback({ params, sendResponseAsync });
+          callback({ params: requestPayload.params as P, sendResponseAsync });
         }).remove
       );
     };
 
-    // Create the sendMessageAsync function for the plugin
-    const sendMessageAsync = async (eventName: string, message: string) => {
-      await client.sendMessage(eventName, {
-        message,
-        deviceName: getDeviceName(),
-        applicationId,
-      });
-    };
-
-    return { addMessageListener, sendMessageAsync };
+    return { addMessageListener };
   } else {
     console.debug(`Skipping starting startDevToolsPluginListenerAsync for plugin ${pluginName}...`);
-    const addMessageListener = <P extends Record<string, string>>(
+    const addMessageListener = <P extends Record<string, unknown>>(
       _e: string,
       _c: (arg: { params: P; sendResponseAsync: (message: string) => Promise<void> }) => void
     ) => {};
 
-    // Create the sendMessageAsync function for the plugin
-    const sendMessageAsync = async (_e: string, _m: string) => {};
-    return { addMessageListener, sendMessageAsync };
+    return { addMessageListener };
   }
 };
