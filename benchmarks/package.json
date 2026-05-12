@@ -1,0 +1,17 @@
+{
+  "name": "expo-benchmarks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "vitest bench --run"
+  },
+  "devDependencies": {
+    "@codspeed/vitest-plugin": "^4.0.0",
+    "vitest": "^3.2.1"
+  },
+  "dependencies": {
+    "debug": "^4.3.4",
+    "json5": "^2.2.3"
+  }
+}

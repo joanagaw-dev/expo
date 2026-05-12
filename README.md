@@ -18,6 +18,7 @@
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-success.svg?style=flat-square&color=33CC12" target="_blank" />
   </a>
   <a aria-label="expo downloads" href="http://www.npmtrends.com/expo" target="_blank">
+  <a href="https://codspeed.io/joanagaw-dev/expo?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed"/></a>
     <img alt="Downloads" src="https://img.shields.io/npm/dm/expo.svg?style=flat-square&labelColor=gray&color=33CC12&label=Downloads" />
   </a>
 </p>

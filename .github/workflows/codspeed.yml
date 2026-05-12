@@ -1,0 +1,48 @@
+name: CodSpeed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - benchmarks/**
+      - packages/@expo/fingerprint/src/**
+      - packages/@expo/json-file/src/**
+      - .github/workflows/codspeed.yml
+  pull_request:
+    paths:
+      - benchmarks/**
+      - packages/@expo/fingerprint/src/**
+      - packages/@expo/json-file/src/**
+      - .github/workflows/codspeed.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codspeed:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install benchmark dependencies
+        working-directory: benchmarks
+        run: npm ci
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          mode: simulation
+          run: cd benchmarks && npx vitest bench --run
