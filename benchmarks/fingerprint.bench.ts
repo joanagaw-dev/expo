@@ -274,7 +274,7 @@ describe("@expo/fingerprint - compareSource", () => {
 describe("@expo/fingerprint - dedupSources", () => {
   const small = generateDuplicatedSources(50);
   const medium = generateDuplicatedSources(200);
-  const large = generateDuplicatedSources(500);
+  const large = generateDuplicatedSources(300);
 
   bench("dedup 50 sources with overlapping paths", () => {
     dedupSources([...small], "/project");
@@ -284,7 +284,7 @@ describe("@expo/fingerprint - dedupSources", () => {
     dedupSources([...medium], "/project");
   });
 
-  bench("dedup 500 sources with overlapping paths", () => {
+  bench("dedup 300 sources with overlapping paths", () => {
     dedupSources([...large], "/project");
   });
 });
